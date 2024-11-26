@@ -19,7 +19,7 @@
                 <f:selectItems value="#{bb.systemRoles}"/>
             </p:selectOneMenu>
             <h:outputText value="  "/>
-            <h:commandButton value="Nouveau chat" action="#{bb.nouveauChat}" />
+            <h:commandButton value="Nouveau chat" action="#{bb.nouveauChat}"  update="conversation, reponse" />
             <h:panelGrid id="paneltotal" columns="2" columnClasses="topAligned,topAligned">
                 <h:panelGrid id="panelgauche" columns="1">
                     <h:panelGrid id="questionetreponse" columns="1">

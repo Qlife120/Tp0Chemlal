@@ -7,6 +7,12 @@ import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 
+import opennlp.tools.langdetect.Language;
+import opennlp.tools.langdetect.LanguageDetector;
+import opennlp.tools.langdetect.LanguageDetectorME;
+import opennlp.tools.langdetect.LanguageDetectorModel;
+
+import java.io.InputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -97,6 +103,28 @@ public class Bb implements Serializable {
         this.conversation = new StringBuilder(conversation);
     }
 
+    /** Fonction qui detecte la langue de la question de l'utilisateur en utilisant le modele language detector OpenNlp
+     *
+      */
+
+    public String detectLanguage(String question){
+        if(question==null || question.isBlank()){
+            return "Texte vide: Langue non detecte.";
+        }
+        try(InputStream modelIn = getClass().getResourceAsStream("/langdetect-183.bin")) {
+
+            LanguageDetectorModel model = new LanguageDetectorModel(modelIn);
+            LanguageDetector languageDetector = new LanguageDetectorME(model);
+
+            Language detectedLanguage = languageDetector.predictLanguage(question);
+
+            return detectedLanguage.getLang();
+
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de la detection de langue.",e);
+        }
+    }
+
     /**
      * Envoie la question au serveur.
      * En attendant de l'envoyer à un LLM, le serveur fait un traitement quelconque, juste pour tester :
@@ -105,6 +133,7 @@ public class Bb implements Serializable {
      *
      * @return null pour rester sur la même page.
      */
+
     public String envoyer() {
         if (question == null || question.isBlank()) {
             // Erreur ! Le formulaire va être automatiquement réaffiché par JSF en réponse à la requête POST,
@@ -114,16 +143,18 @@ public class Bb implements Serializable {
             facesContext.addMessage(null, message);
             return null;
         }
-        // Entourer la réponse avec "||".
-        this.reponse = "||";
-        // Si la conversation n'a pas encore commencé, ajouter le rôle système au début de la réponse
-        if (this.conversation.isEmpty()) {
-            // Ajouter le rôle système au début de la réponse
-            this.reponse += systemRole.toUpperCase(Locale.FRENCH) + "\n";
-            // Invalide le bouton pour changer le rôle système
-            this.systemRoleChangeable = false;
+        // Si le role detecte est Detecteur de langue, respone prend le language detecte par le model, sinon le meme traitement.
+        if ("You are a languge detector model.".equals(systemRole.trim())){
+            this.reponse = detectLanguage(question);
         }
-        this.reponse += question.toLowerCase(Locale.FRENCH) + "||";
+        else {
+            if(this.conversation.isEmpty()){
+                this.reponse = systemRole.toUpperCase(Locale.FRENCH) + "\n";
+
+            }
+            this.reponse += question.toLowerCase(Locale.FRENCH) + "||";
+
+        }
         // La conversation contient l'historique des questions-réponses depuis le début.
         afficherConversation();
         return null;
@@ -171,8 +202,21 @@ public class Bb implements Serializable {
                 are you tell them the average price of a meal.
                 """;
         listeSystemRoles.add(new SelectItem(role, "Guide touristique"));
+
+        /** Ajout du noveau role juste pour faire la difference entre les autres roles deja predefinies, la detection de langue ne
+         * se declenchera que quand ce role est selectionne.
+         *
+         */
+        role = """
+                You are a languge detector model. 
+                """;
+
+        listeSystemRoles.add(new SelectItem(role, "Detecteur de langue"));
+
         // Présélectionne le premier rôle de la liste.
                 this.systemRole = (String) listeSystemRoles.getFirst().getValue();
         return listeSystemRoles;
     }
+
+
 }
